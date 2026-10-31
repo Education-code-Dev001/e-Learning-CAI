@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAI WebAR Courseware - วิทยาการคำนวณ ว25101</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Sarabun -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Google Model Viewer for WebAR -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
+        .tab-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
+        .tab-inactive { color: #6b7280; font-weight: 400; }
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        
+        /* Custom Scrollbar for tables */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased h-screen flex flex-col overflow-hidden">
+
+    <!-- Custom Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2"></div>
+
+    <!-- Navbar -->
+    <nav class="bg-indigo-700 text-white shadow-md shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 p-2 rounded-lg">
+                        <i data-lucide="box" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold leading-tight">CAI WebAR Courseware</h1>
+                        <p class="text-xs text-indigo-200">วิทยาการคำนวณ ว25101 | ร.ร.เต่างอยพัฒนะศึกษา</p>
+                    </div>
+                </div>
+                <div id="user-menu" class="hidden flex items-center gap-4">
+                    <div class="text-right hidden sm:block">
+                        <p id="nav-user-name" class="text-sm font-semibold text-white"></p>
+                        <p id="nav-user-role" class="text-xs text-indigo-200"></p>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-indigo-500 border-2 border-indigo-300 flex items-center justify-center overflow-hidden">
+                        <i data-lucide="user" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <button onclick="logout()" class="p-2 bg-indigo-800 hover:bg-indigo-900 rounded-lg text-sm transition-colors flex items-center gap-2">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">ออกจากระบบ</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto min-h-full">
+
+            <!-- 1. LOGIN SCREEN -->
+            <div id="screen-login" class="min-h-[80vh] flex items-center justify-center">
+                <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+                    <div class="bg-indigo-50 p-6 text-center border-b border-indigo-100">
+                        <div class="w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                            <i data-lucide="scan-face" class="w-8 h-8 text-white"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-slate-800">เข้าสู่ระบบ (Mock Mode)</h2>
+                        <p class="text-sm text-slate-500 mt-1">กรุณาเลือกรูปแบบการเข้าใช้งาน</p>
+                    </div>
+                    
+                    <div class="flex border-b border-slate-200">
+                        <button onclick="switchTab('student')" id="tab-student" class="flex-1 py-3 text-sm text-center tab-active transition-colors">👨‍🎓 ผู้เรียน (Student)</button>
+                        <button onclick="switchTab('teacher')" id="tab-teacher" class="flex-1 py-3 text-sm text-center tab-inactive transition-colors">👨‍🏫 ผู้สอน (Teacher)</button>
+                    </div>
+
+                    <div class="p-6">
+                        <!-- Student Form -->
+                        <div id="form-student" class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">รหัสนักเรียน 11 หลัก</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="credit-card" class="w-4 h-4 text-slate-400"></i>
+                                    </div>
+                                    <input type="text" id="student-id" placeholder="เช่น 66010123401" class="pl-10 w-full rounded-lg border-slate-300 border px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" maxlength="11">
+                                </div>
+                                <p class="text-xs text-slate-500 mt-2">ทดสอบ: 66010123401 (คี่), 66010123402 (คู่)</p>
+                            </div>
+                            <button onclick="loginStudent()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-md">
+                                เข้าสู่ห้องเรียน <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Teacher Form -->
+                        <div id="form-teacher" class="space-y-4 hidden">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">อีเมลสถาบัน</label>
+                                <div class="relative mb-4">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="mail" class="w-4 h-4 text-slate-400"></i>
+                                    </div>
+                                    <input type="email" id="teacher-email" value="teacher@taongoy.ac.th" class="pl-10 w-full rounded-lg border-slate-300 border px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                                </div>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">รหัสผ่าน</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="lock" class="w-4 h-4 text-slate-400"></i>
+                                    </div>
+                                    <input type="password" value="123456" class="pl-10 w-full rounded-lg border-slate-300 border px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                                </div>
+                            </div>
+                            <button onclick="loginTeacher()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-md">
+                                เข้าสู่ระบบจัดการ <i data-lucide="settings" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. STUDENT DASHBOARD -->
+            <div id="screen-student" class="hidden h-full flex flex-col gap-6">
+                <!-- Top Stats & Info -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Profile Card -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4">
+                        <div class="w-16 h-16 rounded-full border-4 border-indigo-100 overflow-hidden bg-slate-100 flex-shrink-0">
+                            <img id="profile-preview-display" src="https://placehold.co/100x100/e2e8f0/475569?text=User" alt="Profile" class="w-full h-full object-cover">
+                        </div>
+                        <div>
+                            <h3 id="display-student-name" class="font-bold text-slate-800 text-lg">ชื่อ-สกุล</h3>
+                            <p id="display-student-id" class="text-sm text-slate-500 font-mono">รหัสนักเรียน</p>
+                        </div>
+                    </div>
+
+                    <!-- Exam Logic Card -->
+                    <div class="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl shadow-sm border border-indigo-100 p-5 md:col-span-2 flex flex-col justify-center">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="cpu" class="w-5 h-5 text-indigo-600"></i>
+                            <h3 class="font-bold text-indigo-900">ระบบจัดสรรชุดข้อสอบคู่ขนานอัตโนมัติ (Parallel Exam)</h3>
+                        </div>
+                        <div class="flex gap-4 sm:gap-6 mt-1">
+                            <div class="bg-white px-4 py-3 rounded-lg border border-indigo-100 shadow-sm flex-1">
+                                <p class="text-xs text-slate-500 mb-1">ข้อสอบก่อนเรียน (Pre-test)</p>
+                                <p id="display-exam-pre" class="font-bold text-indigo-700">กำลังประมวลผล...</p>
+                                <p id="display-score-pre" class="text-sm text-slate-600 mt-2 font-medium bg-slate-50 inline-block px-2 py-1 rounded"></p>
+                            </div>
+                            <div class="bg-white px-4 py-3 rounded-lg border border-indigo-100 shadow-sm flex-1">
+                                <p class="text-xs text-slate-500 mb-1">ข้อสอบหลังเรียน (Post-test)</p>
+                                <p id="display-exam-post" class="font-bold text-indigo-700">กำลังประมวลผล...</p>
+                                <p id="display-score-post" class="text-sm text-slate-600 mt-2 font-medium bg-slate-50 inline-block px-2 py-1 rounded"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW: Learning Progress Tracker -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="map" class="w-5 h-5 text-emerald-500"></i> เส้นทางการเรียนรู้ (Learning Roadmap)
+                        </h3>
+                        <div class="flex items-center gap-3">
+                            <button onclick="advanceProgress()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 shadow-sm border border-indigo-200">
+                                <i data-lucide="check-circle" class="w-3 h-3"></i> จบหน่วยปัจจุบัน
+                            </button>
+                            <span id="progress-text" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">ความก้าวหน้า: 40%</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-between relative z-0">
+                        <!-- Progress Line -->
+                        <div class="hidden sm:block absolute top-1/2 left-0 right-0 h-1 bg-slate-100 -z-10 -translate-y-1/2 rounded-full"></div>
+                        <div id="progress-bar-fill" class="hidden sm:block absolute top-1/2 left-0 w-[40%] h-1 bg-emerald-400 -z-10 -translate-y-1/2 rounded-full transition-all duration-500"></div>
+                        
+                        <!-- Units -->
+                        <div id="unit-1" class="flex-1 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center shadow-sm relative cursor-pointer hover:bg-emerald-100 transition">
+                            <div class="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-emerald-50"><i data-lucide="check" class="w-3 h-3"></i></div>
+                            <p class="text-xs font-bold text-emerald-800">หน่วยที่ 1</p>
+                            <p class="text-[10px] text-emerald-600">พื้นฐาน 3D</p>
+                        </div>
+                        <div id="unit-2" class="flex-1 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center shadow-sm relative cursor-pointer hover:bg-emerald-100 transition">
+                            <div class="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-emerald-50"><i data-lucide="check" class="w-3 h-3"></i></div>
+                            <p class="text-xs font-bold text-emerald-800">หน่วยที่ 2</p>
+                            <p class="text-[10px] text-emerald-600">การทำงาน AR</p>
+                        </div>
+                        <div id="unit-3" class="flex-1 bg-white border border-blue-200 rounded-lg p-3 text-center shadow-md relative ring-2 ring-blue-100 transform scale-105 cursor-pointer hover:bg-slate-50 transition">
+                            <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-white shadow-sm">3</div>
+                            <p class="text-xs font-bold text-blue-800">หน่วยที่ 3</p>
+                            <p class="text-[10px] text-blue-600">กำลังเรียน...</p>
+                        </div>
+                        <div id="unit-4" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 text-center relative opacity-60 transition-all duration-300">
+                            <div class="w-6 h-6 bg-slate-300 text-slate-600 rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-white"><i data-lucide="lock" class="w-3 h-3"></i></div>
+                            <p class="text-xs font-bold text-slate-600">หน่วยที่ 4</p>
+                            <p class="text-[10px] text-slate-500">รอปลดล็อก</p>
+                        </div>
+                        <div id="unit-5" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 text-center relative opacity-60 transition-all duration-300">
+                            <div class="w-6 h-6 bg-slate-300 text-slate-600 rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-white"><i data-lucide="lock" class="w-3 h-3"></i></div>
+                            <p class="text-xs font-bold text-slate-600">หน่วยที่ 5</p>
+                            <p class="text-[10px] text-slate-500">รอปลดล็อก</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Layout -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+                    
+                    <!-- WebAR Module -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col overflow-hidden">
+                        <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="cuboid" class="w-5 h-5 text-blue-500"></i> สื่อปฏิสัมพันธ์ 3 มิติ (WebAR)
+                            </h3>
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">&lt;model-viewer&gt; Engine</span>
+                        </div>
+                        <div class="flex-1 bg-slate-100 relative min-h-[400px]">
+                            <!-- 3D Model Viewer -->
+                            <model-viewer 
+                                src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
+                                ios-src="" 
+                                poster="https://placehold.co/800x600/e2e8f0/475569?text=Loading+3D+Model..." 
+                                alt="A 3D model of an astronaut" 
+                                shadow-intensity="1" 
+                                camera-controls 
+                                auto-rotate 
+                                ar 
+                                ar-modes="webxr scene-viewer quick-look"
+                                class="w-full h-full">
+                                
+                                <div slot="poster" class="absolute inset-0 flex items-center justify-center bg-slate-100">
+                                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                                </div>
+                                <button slot="ar-button" class="absolute bottom-4 right-4 bg-white/90 backdrop-blur text-indigo-700 px-4 py-2 rounded-lg shadow-lg font-bold text-sm flex items-center gap-2 hover:bg-white transition-colors border border-indigo-100">
+                                    <i data-lucide="smartphone" class="w-4 h-4"></i> ดูในพื้นที่จริง (AR)
+                                </button>
+                            </model-viewer>
+                        </div>
+                        <div class="p-4 text-xs text-slate-500 bg-slate-50 border-t border-slate-100">
+                            * สามารถใช้เมาส์หมุน ซูม หรือกดปุ่ม "ดูในพื้นที่จริง (AR)" บนสมาร์ตโฟนเพื่อจำลองภาพเสมือน
+                        </div>
+                    </div>
+
+                    <!-- Client-side File Optimization -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="image-down" class="w-5 h-5 text-emerald-500"></i> อัปโหลดโปรไฟล์ (Client Resize)
+                            </h3>
+                        </div>
+                        <div class="p-5 flex-1 flex flex-col">
+                            <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                                ระบบจะทำการย่อขนาดรูปภาพฝั่งผู้ใช้ (HTML Canvas) ให้ไม่เกิน <strong>400x400 px</strong> อัตโนมัติก่อนอัปโหลดเข้า Storage เพื่อประหยัดพื้นที่
+                            </p>
+                            
+                            <div class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50 transition-colors cursor-pointer relative" onclick="document.getElementById('file-upload').click()">
+                                <input type="file" id="file-upload" class="hidden" accept="image/*">
+                                <i data-lucide="upload-cloud" class="w-10 h-10 text-slate-400 mx-auto mb-2"></i>
+                                <p class="text-sm font-medium text-slate-700">คลิกเพื่อเลือกรูปภาพ</p>
+                                <p class="text-xs text-slate-500 mt-1">PNG, JPG (Max: 2MB)</p>
+                            </div>
+
+                            <div class="mt-6 flex-1 flex flex-col items-center justify-center border border-slate-100 rounded-xl bg-slate-50 p-4">
+                                <p class="text-xs text-slate-400 mb-2 font-medium">ผลลัพธ์ภาพที่ถูกย่อขนาดแล้ว</p>
+                                <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-md bg-slate-200">
+                                    <img id="profile-preview-canvas" src="https://placehold.co/400x400/e2e8f0/475569?text=Preview" alt="Preview" class="w-full h-full object-cover">
+                                </div>
+                                <p id="image-size-info" class="text-xs text-emerald-600 mt-3 font-mono bg-emerald-50 px-2 py-1 rounded hidden"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NEW: Assignment Submission -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col lg:col-span-3">
+                        <div class="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="send" class="w-5 h-5 text-purple-500"></i> ส่งงานปฏิบัติการ (Assignments & Submissions)
+                            </h3>
+                        </div>
+                        <div class="p-5 flex flex-col sm:flex-row gap-6">
+                            <div class="flex-1 border-r border-slate-100 pr-0 sm:pr-6">
+                                <label class="block text-sm font-medium text-slate-700 mb-2">อัปโหลดไฟล์ผลงาน (PDF, JPG, MP4)</label>
+                                <input type="file" class="w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer">
+                                <p class="text-xs text-slate-500 mt-2">* ขนาดไฟล์ต้องไม่เกิน 20MB (อัปโหลดเข้า Storage Bucket: submissions)</p>
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-sm font-medium text-slate-700 mb-2">หรือแนบลิงก์ผลงาน (เช่น YouTube, Google Drive)</label>
+                                <div class="flex gap-2">
+                                    <input type="url" placeholder="https://" class="flex-1 rounded-lg border-slate-300 border px-3 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 outline-none">
+                                    <button class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap" onclick="submitAssignment()">ส่งงาน</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 3. TEACHER DASHBOARD -->
+            <div id="screen-teacher" class="hidden h-full flex flex-col gap-6">
+                
+                <!-- Teacher Tabs Nav -->
+                <div class="flex border-b border-slate-200 bg-white rounded-t-xl px-4 pt-2">
+                    <button onclick="switchTeacherTab('overview')" id="tab-t-overview" class="px-5 py-3 text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 transition-colors">📊 ภาพรวม (Overview)</button>
+                    <button onclick="switchTeacherTab('grading')" id="tab-t-grading" class="px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">📝 ตรวจงาน (Grading)</button>
+                    <button onclick="switchTeacherTab('materials')" id="tab-t-materials" class="px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors">📁 จัดการสื่อ (Materials)</button>
+                </div>
+
+                <!-- Tab 1: Overview (Existing Dashboard) -->
+                <div id="teacher-view-overview" class="flex flex-col gap-6 h-full min-h-0">
+                    <!-- Overview Stats -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    </h3>
+                    <div class="flex flex-col gap-3">
+                        <!-- Pre Test Bar -->
+                        <div class="flex items-center gap-4">
+                            <div class="w-24 text-sm font-medium text-slate-600 text-right">ก่อนเรียน (Pre)</div>
+                            <div class="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden flex items-center">
+                                <div id="chart-pre-bar" class="h-full bg-amber-400 rounded-full flex items-center px-3 transition-all duration-1000" style="width: 0%;">
+                                    <span class="text-xs font-bold text-amber-900" id="chart-pre-text"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Post Test Bar -->
+                        <div class="flex items-center gap-4">
+                            <div class="w-24 text-sm font-medium text-slate-600 text-right">หลังเรียน (Post)</div>
+                            <div class="flex-1 h-6 bg-slate-100 rounded-full overflow-hidden flex items-center">
+                                <div id="chart-post-bar" class="h-full bg-emerald-500 rounded-full flex items-center px-3 transition-all duration-1000" style="width: 0%;">
+                                    <span class="text-xs font-bold text-white" id="chart-post-text"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 flex flex-col min-h-0">
+                    <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 rounded-t-xl">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-lg">ผลประเมินการเรียนรู้ (Effectiveness Index)</h3>
+                            <p class="text-xs text-slate-500 mt-1">คำนวณดัชนีประสิทธิผลตามแนวคิดของ Hake (1998)</p>
+                        </div>
+                        <button onclick="exportCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 shadow-sm whitespace-nowrap">
+                            <i data-lucide="download" class="w-4 h-4"></i> Export CSV
+                        </button>
+                    </div>
+                    <div class="overflow-x-auto flex-1">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-slate-100 sticky top-0 shadow-sm z-10">
+                                <tr>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-600 uppercase">รหัสนักเรียน</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-600 uppercase">ชื่อ-นามสกุล</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-600 uppercase text-center">ชุดข้อสอบ (Pre/Post)</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-600 uppercase text-center">Pre-test (10)</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-slate-600 uppercase text-center">Post-test (10)</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-indigo-700 uppercase text-center bg-indigo-50">Gain (g)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-table-body" class="divide-y divide-slate-100 text-sm">
+                                <!-- Data will be injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Tab 2: Grading (New) -->
+                <div id="teacher-view-grading" class="hidden flex-col gap-6 flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-slate-800 text-lg">คิวงานรอตรวจ (Pending Submissions)</h3>
+                    </div>
+                    <div class="text-center py-20 border-2 border-dashed border-slate-200 rounded-xl">
+                        <i data-lucide="check-square" class="w-16 h-16 text-slate-300 mx-auto mb-4"></i>
+                        <h4 class="font-bold text-slate-600 text-lg">ยอดเยี่ยม! ไม่มีงานค้างตรวจ</h4>
+                        <p class="text-sm text-slate-500 mt-2">นักเรียนยังไม่ได้ทำการส่งงานปฏิบัติการเข้ามาในระบบ (โหมดจำลอง)</p>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Materials (New) -->
+                <div id="teacher-view-materials" class="hidden flex-col gap-6 flex-1 bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-slate-800 text-lg">คลังสื่อการเรียนรู้เพิ่มเติม (Materials)</h3>
+                        <button class="bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors">
+                            <i data-lucide="upload-cloud" class="w-4 h-4"></i> อัปโหลดสื่อใหม่
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="border border-slate-200 p-4 rounded-xl flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer">
+                            <div class="w-10 h-10 bg-red-100 text-red-600 rounded-lg flex items-center justify-center"><i data-lucide="file-text"></i></div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">เอกสารประกอบ WebAR.pdf</p>
+                                <p class="text-xs text-slate-500">2.4 MB • อัปโหลดเมื่อ 2 วันที่แล้ว</p>
+                            </div>
+                        </div>
+                        <div class="border border-slate-200 p-4 rounded-xl flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer">
+                            <div class="w-10 h-10 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center"><i data-lucide="monitor-play"></i></div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-800">สไลด์สอน_Unit1.pptx</p>
+                                <p class="text-xs text-slate-500">15.1 MB • อัปโหลดเมื่อ 2 วันที่แล้ว</p>
+                            </div>
+                        </div>
+                        <div class="border-2 border-dashed border-slate-200 p-4 rounded-xl flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-colors cursor-pointer">
+                            <i data-lucide="plus"></i> <span class="text-sm font-bold">เพิ่มไฟล์ (Max 50MB)</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // ---------------------------------------------------------
+        // 1. MOCK DATA & STATE
+        // ---------------------------------------------------------
+        const mockStudents = [
+            { id: '66010123401', name: 'เด็กชายก้องภพ ใจดี', pre: 4, post: 8 },
+            { id: '66010123402', name: 'เด็กหญิงมณีรัตน์ แจ่มใส', pre: 5, post: 9 },
+            { id: '66010123403', name: 'เด็กชายปัญญาวุฒิ เรียนดี', pre: 10, post: 10 },
+            { id: '66010123404', name: 'เด็กหญิงวรรณิษา รักเรียน', pre: 3, post: 7 },
+            { id: '66010123405', name: 'เด็กชายสุรศักดิ์ กล้าหาญ', pre: 6, post: 9 },
+        ];
+
+        let currentUser = null;
+        let currentRole = null; // 'student' or 'teacher'
+        let currentLearningUnit = 3; // สถานะหน่วยการเรียนรู้ที่กำลังเรียน
+
+        // ---------------------------------------------------------
+        // 2. CORE LOGIC (Hake's Normalized Gain)
+        // ---------------------------------------------------------
+        function calculateGain(pre, post, full = 10) {
+            // ป้องกัน Error หารด้วยศูนย์ (Division by Zero) ตามสเปก
+            if (pre === full) return 1.00;
+            return (post - pre) / (full - pre);
+        }
+
+        // ---------------------------------------------------------
+        // 3. UI HELPER FUNCTIONS
+        // ---------------------------------------------------------
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-emerald-600' : 'bg-red-500';
+            const icon = type === 'success' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            
+            toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0`;
+            toast.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">${icon}</svg> <span class="font-medium text-sm">${message}</span>`;
+            
+            container.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => { toast.classList.remove('translate-y-10', 'opacity-0'); }, 10);
+            
+            // Animate out
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function switchTab(role) {
+            const tStudent = document.getElementById('tab-student');
+            const tTeacher = document.getElementById('tab-teacher');
+            const fStudent = document.getElementById('form-student');
+            const fTeacher = document.getElementById('form-teacher');
+
+            if (role === 'student') {
+                tStudent.className = 'flex-1 py-3 text-sm text-center tab-active transition-colors';
+                tTeacher.className = 'flex-1 py-3 text-sm text-center tab-inactive transition-colors hover:bg-slate-50';
+                fStudent.classList.remove('hidden');
+                fTeacher.classList.add('hidden');
+            } else {
+                tTeacher.className = 'flex-1 py-3 text-sm text-center tab-active transition-colors';
+                tStudent.className = 'flex-1 py-3 text-sm text-center tab-inactive transition-colors hover:bg-slate-50';
+                fTeacher.classList.remove('hidden');
+                fStudent.classList.add('hidden');
+            }
+        }
+
+        function showScreen(screenId) {
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('screen-student').classList.add('hidden');
+            document.getElementById('screen-teacher').classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+            
+            const userMenu = document.getElementById('user-menu');
+            if(screenId === 'screen-login') {
+                userMenu.classList.add('hidden');
+            } else {
+                userMenu.classList.remove('hidden');
+            }
+        }
+
+        // ---------------------------------------------------------
+        // 4. AUTHENTICATION (Mock)
+        // ---------------------------------------------------------
+        function loginStudent() {
+            const idInput = document.getElementById('student-id').value.trim();
+            
+            // ตรวจสอบความถูกต้อง (รหัส 11 หลัก)
+            if (idInput.length !== 11 || isNaN(idInput)) {
+                showToast('กรุณากรอกรหัสนักเรียน 11 หลักให้ถูกต้อง', 'error');
+                return;
+            }
+
+            // ค้นหาข้อมูล หรือสร้าง Mock Data หากไม่พบ
+            let student = mockStudents.find(s => s.id === idInput);
+            if (!student) {
+                student = { id: idInput, name: 'นักเรียนใหม่ (จำลอง)', pre: 0, post: 0 };
+            }
+
+            currentUser = student;
+            currentRole = 'student';
+
+            // ตรรกะสลับข้อสอบ (Parallel Exam System)
+            const lastDigit = parseInt(idInput.slice(-1));
+            const isEven = lastDigit % 2 === 0;
+            const preExam = isEven ? 'ชุด B' : 'ชุด A';
+            const postExam = isEven ? 'ชุด A' : 'ชุด B';
+
+            // อัปเดต UI หน้า Student
+            document.getElementById('display-student-name').textContent = student.name;
+            document.getElementById('display-student-id').textContent = student.id;
+            document.getElementById('display-exam-pre').textContent = preExam;
+            document.getElementById('display-exam-post').textContent = postExam;
+            
+            // เพิ่มการแสดงคะแนนของนักเรียนแบบเรียลไทม์
+            document.getElementById('display-score-pre').innerHTML = `คะแนน: <span class="text-amber-600 font-bold">${student.pre}/10</span>`;
+            document.getElementById('display-score-post').innerHTML = `คะแนน: <span class="text-emerald-600 font-bold">${student.post}/10</span>`;
+            
+            document.getElementById('nav-user-name').textContent = student.name;
+            document.getElementById('nav-user-role').textContent = 'นักเรียน (Student)';
+
+            resetProgressUI(); // รีเซ็ตสถานะทุกครั้งที่ล็อกอินใหม่
+
+            showScreen('screen-student');
+            showToast('เข้าสู่ระบบสำเร็จ');
+        }
+
+        function loginTeacher() {
+            const email = document.getElementById('teacher-email').value;
+            if(!email) {
+                showToast('กรุณากรอกอีเมล', 'error');
+                return;
+            }
+
+            currentUser = { name: 'อ.ผู้สอน เต่างอย', email: email };
+            currentRole = 'teacher';
+
+            document.getElementById('nav-user-name').textContent = currentUser.name;
+            document.getElementById('nav-user-role').textContent = 'ผู้สอน (Instructor)';
+
+            // Reset Tab View
+            if (typeof switchTeacherTab === 'function') switchTeacherTab('overview');
+
+            renderTeacherDashboard();
+            showScreen('screen-teacher');
+            showToast('เข้าสู่ระบบจัดการสำเร็จ');
+        }
+
+        function logout() {
+            currentUser = null;
+            currentRole = null;
+            document.getElementById('student-id').value = '';
+            showScreen('screen-login');
+            showToast('ออกจากระบบเรียบร้อยแล้ว');
+        }
+
+        // ---------------------------------------------------------
+        // 5. CLIENT-SIDE IMAGE RESIZE (Canvas API)
+        // ---------------------------------------------------------
+        document.getElementById('file-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.type.match('image.*')) {
+                showToast('กรุณาเลือกไฟล์รูปภาพเท่านั้น', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 400; // ตามสเปก
+                    let width = img.width;
+                    let height = img.height;
+
+                    // คำนวณสัดส่วน
+                    if (width > height) {
+                        if (width > MAX_SIZE) {
+                            height *= MAX_SIZE / width;
+                            width = MAX_SIZE;
+                        }
+                    } else {
+                        if (height > MAX_SIZE) {
+                            width *= MAX_SIZE / height;
+                            height = MAX_SIZE;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    // วาดรูปลง Canvas
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // แปลงกลับเป็น Base64
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // อัปเดต UI
+                    document.getElementById('profile-preview-canvas').src = dataUrl;
+                    document.getElementById('profile-preview-display').src = dataUrl;
+                    
+                    const info = document.getElementById('image-size-info');
+                    info.textContent = `ขนาดใหม่: ${Math.round(width)}x${Math.round(height)} px`;
+                    info.classList.remove('hidden');
+
+                    showToast('ย่อขนาดรูปภาพสำเร็จ! (Client-side)');
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        // ---------------------------------------------------------
+        // 6. TEACHER DASHBOARD LOGIC
+        // ---------------------------------------------------------
+        function renderTeacherDashboard() {
+            const tbody = document.getElementById('student-table-body');
+            tbody.innerHTML = '';
+
+            let sumPre = 0, sumPost = 0, sumG = 0;
+
+            mockStudents.forEach(student => {
+                const lastDigit = parseInt(student.id.slice(-1));
+                const isEven = lastDigit % 2 === 0;
+                const examSet = isEven ? 'B / A' : 'A / B';
+                const g = calculateGain(student.pre, student.post);
+                
+                sumPre += student.pre;
+                sumPost += student.post;
+                sumG += g;
+
+                // กำหนดสีของค่า g
+                let gColorClass = 'text-slate-600 font-medium';
+                if (g >= 0.7) gColorClass = 'text-emerald-600 font-bold';
+                else if (g >= 0.3) gColorClass = 'text-blue-600 font-bold';
+                else if (g < 0) gColorClass = 'text-red-500 font-bold';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-colors';
+                tr.innerHTML = `
+                    <td class="px-6 py-4 font-mono text-slate-700">${student.id}</td>
+                    <td class="px-6 py-4 font-medium text-slate-800">${student.name}</td>
+                    <td class="px-6 py-4 text-center text-slate-500 text-xs font-mono bg-slate-50/50">${examSet}</td>
+                    <td class="px-6 py-4 text-center text-slate-700">${student.pre}</td>
+                    <td class="px-6 py-4 text-center text-slate-700">${student.post}</td>
+                    <td class="px-6 py-4 text-center bg-indigo-50/50 ${gColorClass}">${g.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            const count = mockStudents.length;
+            
+            // Calculate averages
+            const avgPre = sumPre / count;
+            const avgPost = sumPost / count;
+            
+            document.getElementById('stat-total').textContent = count;
+            document.getElementById('stat-pre').textContent = avgPre.toFixed(1);
+            document.getElementById('stat-post').textContent = avgPost.toFixed(1);
+            document.getElementById('stat-g').textContent = (sumG / count).toFixed(2);
+
+            // Animate Charts
+            setTimeout(() => {
+                document.getElementById('chart-pre-bar').style.width = (avgPre / 10 * 100) + '%';
+                document.getElementById('chart-pre-text').textContent = avgPre.toFixed(1) + ' / 10';
+                
+                document.getElementById('chart-post-bar').style.width = (avgPost / 10 * 100) + '%';
+                document.getElementById('chart-post-text').textContent = avgPost.toFixed(1) + ' / 10';
+            }, 100);
+        }
+
+        // ---------------------------------------------------------
+        // 7. EXPORT CSV (รองรับภาษาไทย)
+        // ---------------------------------------------------------
+        function exportCSV() {
+            // ใส่ BOM (\uFEFF) เพื่อให้ Microsoft Excel เปิดภาษาไทยได้ถูกต้อง
+            const bom = '\uFEFF';
+            let csv = bom + "รหัสนักเรียน,ชื่อ-สกุล,แบบทดสอบ,คะแนนก่อนเรียน,คะแนนหลังเรียน,Normalized Gain (g)\n";
+            
+            mockStudents.forEach(student => {
+                const lastDigit = parseInt(student.id.slice(-1));
+                const examSet = lastDigit % 2 === 0 ? 'B / A' : 'A / B';
+                const g = calculateGain(student.pre, student.post).toFixed(2);
+                
+                csv += `${student.id},${student.name},${examSet},${student.pre},${student.post},${g}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'student_scores_export.csv');
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('ส่งออกไฟล์ CSV สำเร็จ');
+        }
+
+        // ---------------------------------------------------------
+        // 8. TEACHER DASHBOARD TABS
+        // ---------------------------------------------------------
+        function switchTeacherTab(tabName) {
+            const tabs = ['overview', 'grading', 'materials'];
+            
+            tabs.forEach(t => {
+                const viewEl = document.getElementById(`teacher-view-${t}`);
+                const btnEl = document.getElementById(`tab-t-${t}`);
+                
+                if (t === tabName) {
+                    viewEl.classList.remove('hidden');
+                    viewEl.classList.add('flex');
+                    btnEl.className = 'px-5 py-3 text-sm font-bold text-indigo-600 border-b-2 border-indigo-600 transition-colors';
+                } else {
+                    viewEl.classList.add('hidden');
+                    viewEl.classList.remove('flex');
+                    btnEl.className = 'px-5 py-3 text-sm font-medium text-slate-500 hover:text-slate-800 transition-colors';
+                }
+            });
+        }
+
+        // ---------------------------------------------------------
+        // 9. LEARNING PROGRESS TRACKER & UNLOCK SYSTEM
+        // ---------------------------------------------------------
+        function submitAssignment() {
+            // 1. แจ้งเตือนว่าส่งงานสำเร็จ
+            showToast('ระบบได้รับข้อมูลการส่งงานของคุณแล้ว', 'success');
+            
+            // 2. หน่วงเวลา 1 วินาทีเพื่อให้ดูเป็นธรรมชาติ แล้วปลดล็อกหน่วยถัดไปอัตโนมัติ
+            setTimeout(() => {
+                advanceProgress();
+            }, 1000);
+        }
+
+        function advanceProgress() {
+            if (currentLearningUnit > 5) {
+                showToast('คุณเรียนจบทุกหน่วยแล้ว!', 'success');
+                return;
+            }
+            
+            // Mark current unit as completed
+            const currentEl = document.getElementById(`unit-${currentLearningUnit}`);
+            if(currentEl) {
+                currentEl.className = 'flex-1 bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center shadow-sm relative cursor-pointer hover:bg-emerald-100 transition-all duration-300';
+                currentEl.innerHTML = `
+                    <div class="w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-emerald-50"><i data-lucide="check" class="w-3 h-3"></i></div>
+                    <p class="text-xs font-bold text-emerald-800">หน่วยที่ ${currentLearningUnit}</p>
+                    <p class="text-[10px] text-emerald-600">เรียนจบแล้ว</p>
+                `;
+            }
+
+            currentLearningUnit++;
+
+            // Calculate progress percentage (หน่วย 1=20%, 2=40%, 3=60%, 4=80%, 5(จบ)=100%)
+            let percent = (currentLearningUnit - 1) * 20;
+            
+            // Unlock next unit if available
+            if (currentLearningUnit <= 5) {
+                const nextEl = document.getElementById(`unit-${currentLearningUnit}`);
+                if(nextEl) {
+                    nextEl.className = 'flex-1 bg-white border border-blue-200 rounded-lg p-3 text-center shadow-md relative ring-2 ring-blue-100 transform scale-105 cursor-pointer hover:bg-slate-50 transition-all duration-300';
+                    nextEl.innerHTML = `
+                        <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-white shadow-sm">${currentLearningUnit}</div>
+                        <p class="text-xs font-bold text-blue-800">หน่วยที่ ${currentLearningUnit}</p>
+                        <p class="text-[10px] text-blue-600">กำลังเรียน...</p>
+                    `;
+                }
+                showToast(`ปลดล็อกหน่วยที่ ${currentLearningUnit} สำเร็จ!`);
+            } else {
+                showToast(`ยินดีด้วย! คุณเรียนจบครบ 5 หน่วยแล้ว`, 'success');
+                percent = 100;
+            }
+
+            // Update Progress Bar & Text
+            document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+            document.getElementById('progress-text').textContent = `ความก้าวหน้า: ${percent}%`;
+            
+            lucide.createIcons();
+        }
+        
+        function resetProgressUI() {
+            currentLearningUnit = 3;
+            document.getElementById('progress-bar-fill').style.width = '40%';
+            document.getElementById('progress-text').textContent = 'ความก้าวหน้า: 40%';
+            
+            document.getElementById('unit-3').className = 'flex-1 bg-white border border-blue-200 rounded-lg p-3 text-center shadow-md relative ring-2 ring-blue-100 transform scale-105 cursor-pointer hover:bg-slate-50 transition-all duration-300';
+            document.getElementById('unit-3').innerHTML = `
+                <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-white shadow-sm">3</div>
+                <p class="text-xs font-bold text-blue-800">หน่วยที่ 3</p>
+                <p class="text-[10px] text-blue-600">กำลังเรียน...</p>
+            `;
+            
+            [4, 5].forEach(u => {
+                document.getElementById(`unit-${u}`).className = 'flex-1 bg-slate-50 border border-slate-200 rounded-lg p-3 text-center relative opacity-60 transition-all duration-300';
+                document.getElementById(`unit-${u}`).innerHTML = `
+                    <div class="w-6 h-6 bg-slate-300 text-slate-600 rounded-full flex items-center justify-center text-xs mx-auto mb-2 font-bold ring-4 ring-white"><i data-lucide="lock" class="w-3 h-3"></i></div>
+                    <p class="text-xs font-bold text-slate-600">หน่วยที่ ${u}</p>
+                    <p class="text-[10px] text-slate-500">รอปลดล็อก</p>
+                `;
+            });
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
